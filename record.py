@@ -2,8 +2,39 @@ import cv2
 import numpy as np
 import mss
 import time
+from pynput import mouse
 
-screen_region = {"top": 0, "left": 0, "width": 1920, "height": 1080}
+start_pos = None
+end_pos = None
+
+def on_click(x, y, button, pressed):
+    global start_pos, end_pos
+    if pressed:
+        print(f"Mouse pressed at ({x}, {y})")
+        start_pos = (x, y)
+    else:
+        print(f"Mouse released at ({x}, {y})")
+        end_pos = (x, y)
+        return False
+
+def select_screen_region():
+    print("Drag the mouse to draw a rectangle for screen recording...")
+    with mouse.Listener(on_click=on_click) as listener:
+        listener.join()
+
+    if start_pos and end_pos:
+        left = min(start_pos[0], end_pos[0])
+        top = min(start_pos[1], end_pos[1])
+        width = abs(start_pos[0] - end_pos[0])
+        height = abs(start_pos[1] - end_pos[1])
+
+        print(f"Selected region: Top-Left ({left}, {top}), Width: {width}, Height: {height}")
+        return {"top": top, "left": left, "width": width, "height": height}
+    else:
+        print("No region selected.")
+        return None
+
+screen_region = select_screen_region()
 
 output_file = "rec.avi"
 fps = 20.0

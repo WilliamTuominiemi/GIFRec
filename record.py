@@ -3,6 +3,7 @@ import numpy as np
 import mss
 import time
 from pynput import mouse
+import subprocess
 
 start_pos = None
 end_pos = None
@@ -36,12 +37,13 @@ def select_screen_region():
 
 screen_region = select_screen_region()
 
-output_file = "rec.avi"
+output_video_file = "rec.avi"
+output_gif_file = "rec.gif"
 fps = 20.0
 
 with mss.mss() as sct:
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    out = cv2.VideoWriter(output_file, fourcc, fps, (screen_region["width"], screen_region["height"]))
+    out = cv2.VideoWriter(output_video_file, fourcc, fps, (screen_region["width"], screen_region["height"]))
 
     print("Recording... Press 'Ctrl+C' to stop.")
     try:
@@ -57,3 +59,9 @@ with mss.mss() as sct:
     finally:
         out.release()
         cv2.destroyAllWindows()
+
+print("Converting video to GIF using ffmpeg...")
+subprocess.run([
+    'ffmpeg', '-i', output_video_file, '-vf', 'fps=20,scale=320:-1:flags=lanczos', '-c:v', 'gif', output_gif_file])
+
+print(f"GIF saved as {output_gif_file}")

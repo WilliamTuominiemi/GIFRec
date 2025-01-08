@@ -1,41 +1,96 @@
 import cv2
 import numpy as np
 import mss
-import time
-from pynput import mouse
 import subprocess
 import os
+import tkinter as tk
 
-start_pos = None
-end_pos = None
-
-def on_click(x, y, button, pressed):
-    global start_pos, end_pos
-    if pressed:
-        print(f"Mouse pressed at ({x}, {y})")
-        start_pos = (x, y)
-    else:
-        print(f"Mouse released at ({x}, {y})")
-        end_pos = (x, y)
-        return False
+class SelectionOverlay:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Selection Tool")
+        
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        self.root.overrideredirect(True)
+        
+        self.root.wait_visibility(self.root)
+        self.root.attributes('-alpha', 0.3)
+        self.root.attributes('-topmost', True)
+        
+        self.root.geometry(f'{screen_width}x{screen_height}+0+0')
+        
+        self.canvas = tk.Canvas(
+            self.root,
+            highlightthickness=0,
+            cursor="cross",
+            bg='grey'
+        )
+        self.canvas.pack(fill='both', expand=True)
+        
+        self.start_x = None
+        self.start_y = None
+        self.rect = None
+        self.selection = None
+        
+        self.canvas.bind('<Button-1>', self.on_press)
+        self.canvas.bind('<B1-Motion>', self.on_drag)
+        self.canvas.bind('<ButtonRelease-1>', self.on_release)
+        self.root.bind('<Escape>', lambda e: self.root.quit())
+        
+        instruction = tk.Label(
+            self.root,
+            text="Click and drag to select area. Press Esc to cancel.",
+            fg="white",
+            bg="grey",
+            font=("Arial", 12)
+        )
+        instruction.place(relx=0.5, rely=0.02, anchor="n")
+    
+    def on_press(self, event):
+        self.start_x = event.x
+        self.start_y = event.y
+        if self.rect:
+            self.canvas.delete(self.rect)
+    
+    def on_drag(self, event):
+        if self.rect:
+            self.canvas.delete(self.rect)
+        self.rect = self.canvas.create_rectangle(
+            self.start_x, self.start_y, event.x, event.y,
+            outline='red', width=10
+        )
+    
+    def on_release(self, event):
+        x1 = min(self.start_x, event.x)
+        y1 = min(self.start_y, event.y)
+        x2 = max(self.start_x, event.x)
+        y2 = max(self.start_y, event.y)
+        self.selection = {
+            "left": x1,
+            "top": y1,
+            "width": x2 - x1,
+            "height": y2 - y1
+        }
+        self.root.quit()
+    
+    def get_selection(self):
+        self.root.mainloop()
+        selection = self.selection
+        self.root.destroy()
+        return selection
 
 def select_screen_region():
-    print("Drag the mouse to draw a rectangle for screen recording...")
-    with mouse.Listener(on_click=on_click) as listener:
-        listener.join()
-    
-    if start_pos and end_pos:
-        left = min(start_pos[0], end_pos[0])
-        top = min(start_pos[1], end_pos[1])
-        width = abs(start_pos[0] - end_pos[0])
-        height = abs(start_pos[1] - end_pos[1])
-        print(f"Selected region: Top-Left ({left}, {top}), Width: {width}, Height: {height}")
-        return {"top": int(top), "left": int(left), "width": int(width), "height": int(height)}
-    else:
-        print("No region selected.")
-        return None
+    print("Draw a rectangle to select the recording area (Press Esc to cancel)...")
+    overlay = SelectionOverlay()
+    return overlay.get_selection()
 
 screen_region = select_screen_region()
+if not screen_region:
+    print("Selection cancelled or no region selected.")
+    exit()
+
 temp_video_file = "temp_recording.avi"
 output_gif_file = "rec.gif"
 fps = 20.0
@@ -66,6 +121,5 @@ subprocess.run([
     output_gif_file
 ])
 
-# Delete the temporary AVI file
 os.remove(temp_video_file)
 print(f"GIF saved as {output_gif_file}")

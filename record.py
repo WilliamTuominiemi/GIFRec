@@ -4,6 +4,7 @@ import mss
 import subprocess
 import os
 import tkinter as tk
+import time
 
 class SelectionOverlay:
     def __init__(self):
@@ -93,19 +94,28 @@ if not screen_region:
 
 temp_video_file = "temp_recording.avi"
 output_gif_file = "rec.gif"
-fps = 20.0
+temp_fps = 10.0
+gif_fps = 10
+
+frame_interval = 1.0 / temp_fps
 
 with mss.mss() as sct:
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    out = cv2.VideoWriter(temp_video_file, fourcc, fps, 
+    out = cv2.VideoWriter(temp_video_file, fourcc, temp_fps, 
                          (screen_region["width"], screen_region["height"]))
     
     print("Recording... Press 'Ctrl+C' to stop.")
     try:
         while True:
+            start_time = time.time()
+            
             img = np.array(sct.grab(screen_region))
             frame = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
             out.write(frame)
+            
+            elapsed_time = time.time() - start_time
+            sleep_time = max(0, frame_interval - elapsed_time)
+            time.sleep(sleep_time)
             
     except KeyboardInterrupt:
         print("Recording stopped.")
@@ -117,7 +127,7 @@ print("Converting video to GIF using ffmpeg...")
 subprocess.run([
     'ffmpeg', '-y', '-i', temp_video_file,
     '-filter_complex',
-    '[0:v] fps=24,setpts=0.5*PTS,scale=1000:-1,split [a][b];[a] palettegen [p];[b][p] paletteuse',
+    f'[0:v] fps={gif_fps},setpts=0.5*PTS,scale=320:-1,split [a][b];[a] palettegen [p];[b][p] paletteuse',
     output_gif_file
 ])
 

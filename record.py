@@ -84,10 +84,16 @@ class SelectionOverlay:
         return selection
 
 class RecordingControls:
-    def __init__(self, root, stop_flag):
+    def __init__(self, root, stop_flag, selection_area):
         self.root = root
         self.root.title("Recording controls")
-        
+        self.root.attributes('-topmost', True)
+
+        window_x = selection_area["left"] + selection_area["width"] + 10
+        window_y = selection_area["top"]
+
+        self.root.geometry(f"200x100+{window_x}+{window_y}")
+
         self.stop_flag = stop_flag
 
         self.stop_button = tk.Button(self.root, text="Stop Recording", command=self.stop_recording)
@@ -101,9 +107,9 @@ def select_screen_region(root):
     overlay = SelectionOverlay(root)
     return overlay.get_selection()
 
-def open_second_window(stop_flag):
+def open_second_window(stop_flag, screen_region):
     second_window = tk.Tk()
-    RecordingControls(second_window, stop_flag)
+    RecordingControls(second_window, stop_flag, screen_region)
     second_window.mainloop()
 
 def run_recording(screen_region, stop_flag):
@@ -159,7 +165,7 @@ if __name__ == "__main__":
 
     stop_flag = [False]
 
-    second_window_thread = threading.Thread(target=open_second_window, args=(stop_flag,))
+    second_window_thread = threading.Thread(target=open_second_window, args=(stop_flag,screen_region,))
     second_window_thread.daemon = True
     second_window_thread.start()
 

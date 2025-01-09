@@ -4,6 +4,7 @@ import mss
 import subprocess
 import os
 import tkinter as tk
+from tkinter import filedialog
 import time
 import threading
 
@@ -84,37 +85,58 @@ class SelectionOverlay:
         return selection
 
 class RecordingControls:
-    def __init__(self, root, stop_flag, selection_area):
+    def __init__(self, root, stop_flag, screen_region, temp_video_file, output_gif_file):
         self.root = root
         self.root.title("Recording controls")
         self.root.attributes('-topmost', True)
 
-        window_x = selection_area["left"] + selection_area["width"] + 10
-        window_y = selection_area["top"]
+        window_x = screen_region["left"] + screen_region["width"] + 10
+        window_y = screen_region["top"]
 
-        self.root.geometry(f"200x100+{window_x}+{window_y}")
+        self.root.geometry(f"200x150+{window_x}+{window_y}")
 
         self.stop_flag = stop_flag
+        self.temp_video_file = temp_video_file
+        self.output_gif_file = output_gif_file
 
         self.stop_button = tk.Button(self.root, text="Stop Recording", command=self.stop_recording)
-        self.stop_button.pack(pady=20)
+        self.stop_button.pack(pady=10)
+
+        self.save_button = tk.Button(self.root, text="Save Recording", command=self.save_recording, state="disabled")
+        self.save_button.pack(pady=10)
+
+        self.exit_button = tk.Button(self.root, text="Exit", command=self.exit_program, state="disabled")
+        self.exit_button.pack(pady=10)
 
     def stop_recording(self):
         self.stop_flag[0] = True
+        self.stop_button.config(state="disabled")
+        self.save_button.config(state="normal")
+        self.exit_button.config(state="normal")
+
+    def save_recording(self):
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".gif",
+            filetypes=[("GIF files", "*.gif"), ("All files", "*.*")]
+        )
+        if file_path:
+            os.rename(self.output_gif_file, file_path)
+            print(f"Recording saved as {file_path}")
+
+    def exit_program(self):
+        self.root.destroy()
 
 def select_screen_region(root):
     print("Draw a rectangle to select the recording area (Press Esc to cancel)...")
     overlay = SelectionOverlay(root)
     return overlay.get_selection()
 
-def open_second_window(stop_flag, screen_region):
+def open_second_window(stop_flag, screen_region, temp_video_file, output_gif_file):
     second_window = tk.Tk()
-    RecordingControls(second_window, stop_flag, screen_region)
+    RecordingControls(second_window, stop_flag, screen_region, temp_video_file, output_gif_file)
     second_window.mainloop()
 
-def run_recording(screen_region, stop_flag):
-    temp_video_file = "temp_recording.avi"
-    output_gif_file = "rec.gif"
+def run_recording(screen_region, stop_flag, temp_video_file, output_gif_file):
     temp_fps = 10.0
     gif_fps = 10
 
@@ -158,6 +180,9 @@ def run_recording(screen_region, stop_flag):
 if __name__ == "__main__":
     root = tk.Tk()
 
+    temp_video_file = "temp_recording.avi"
+    output_gif_file = "rec.gif"
+
     screen_region = select_screen_region(root)
     if not screen_region:
         print("Selection cancelled or no region selected.")
@@ -165,8 +190,11 @@ if __name__ == "__main__":
 
     stop_flag = [False]
 
-    second_window_thread = threading.Thread(target=open_second_window, args=(stop_flag,screen_region,))
-    second_window_thread.daemon = True
+    second_window_thread = threading.Thread(
+        target=open_second_window, 
+        args=(stop_flag, screen_region, temp_video_file, output_gif_file)
+    )
+    second_window_thread.daemon = False
     second_window_thread.start()
 
-    run_recording(screen_region, stop_flag)
+    run_recording(screen_region, stop_flag, temp_video_file, output_gif_file)

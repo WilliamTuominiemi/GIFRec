@@ -1,3 +1,5 @@
 stg/
 rec.gif
 temp_recording.avi
+build/
+record.spec
